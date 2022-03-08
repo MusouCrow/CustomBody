@@ -74,7 +74,7 @@ public class Body : MonoBehaviour {
         this.OriginPosition = this.transform.position;
     }
 
-    protected void LateUpdate() {
+    protected void FixedUpdate() {
         if (!this.IsGrounded && !this.gravityMove.IsRunning) {
             this.gravityMove.Enter(0, -0.035f, Vector3.down);
         }
@@ -89,7 +89,7 @@ public class Body : MonoBehaviour {
             float angle = Vector3.Angle(Vector3.up, this.normal);
 
             if (angle > this.angleLimit) {
-                this.velocity -= Vector3.ProjectOnPlane(Vector3.up, -this.normal) * 0.1f;
+                this.velocity -= Vector3.ProjectOnPlane(Vector3.up, -this.normal);
             }
         }
 
