@@ -36,5 +36,9 @@ public class Controller : MonoBehaviour {
             this.body.Move(dir.normalized * this.speed);
             this.laterDirection = dir.normalized;
         }
+
+        if (this.transform.position.y < -1000) {
+            this.body.SetPosition(this.body.LegalPosition, true);
+        }
     }
 }
