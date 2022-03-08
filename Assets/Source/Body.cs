@@ -1,11 +1,16 @@
 using UnityEngine;
 
 public class Body : MonoBehaviour {
+    public const float MIN_RANGE = 0.01f;
+
+    public float stepOffset;
+
     private new BoxCollider collider;
     private new Transform transform;
 
     private Vector3 velocity;
     private Vector3 collided;
+    private Vector3 normal;
     private EaseMove gravityMove;
 
     public bool IsGrounded {
@@ -17,6 +22,22 @@ public class Body : MonoBehaviour {
         this.collider = this.GetComponent<BoxCollider>();
         this.transform = this.gameObject.transform;
         this.gravityMove = new EaseMove(this);
+        this.normal = Vector3.up;
+    }
+
+    protected void Start() {
+        var pos = this.transform.position;
+        var size = this.collider.size;
+        var center = pos + this.collider.center + Vector3.up * size.y;
+        RaycastHit hit;
+        bool ok = Physics.BoxCast(center, size, Vector3.down, out hit, Quaternion.identity, size.y);
+        
+        if (ok) {
+            this.normal = hit.normal;
+            this.IsGrounded = true;
+            pos.y = hit.point.y + MIN_RANGE;
+            this.transform.position = pos;
+        }
     }
 
     protected void LateUpdate() {
@@ -34,23 +55,41 @@ public class Body : MonoBehaviour {
             return;
         }
 
-        var direction = this.velocity.normalized;
-        var distance = this.velocity.magnitude;
-        var center = this.transform.position + this.collider.center;
+        var velocity = Mathf.Approximately(this.velocity.y, 0) ? Vector3.ProjectOnPlane(this.velocity, this.normal) : this.velocity;
+        var direction = velocity.normalized;
+        var distance = velocity.magnitude;
+        var position = this.transform.position;
+        var offset = this.collider.center + Vector3.up * this.stepOffset;
+        var center = position + offset;
         var size = this.collider.size * 0.5f;
         RaycastHit hit;
         
         bool ok = Physics.BoxCast(center, size, direction, out hit, Quaternion.identity, distance);
         
         if (ok) {
-            distance = hit.distance - 0.001f;
-            this.collided = this.transform.position + distance * direction;
+            distance = hit.distance - MIN_RANGE;
+            this.collided = position + distance * direction;
         }
         
-        this.transform.position += distance * direction;
-        this.velocity = Vector3.zero;
+        position += distance * direction;
+        center = position + offset;
+        ok = Physics.BoxCast(center, size, Vector3.down, out hit, Quaternion.identity, 100);
 
-        this.IsGrounded = Physics.BoxCast(center, size, Vector3.down, out hit, Quaternion.identity, 0.01f);
+        if (ok) {
+            this.IsGrounded = hit.distance <= this.stepOffset + MIN_RANGE;
+            this.normal = hit.normal;
+
+            if (this.IsGrounded) {
+                position.y = hit.point.y + MIN_RANGE;
+            }
+        }
+        else {
+            this.IsGrounded = false;
+            this.normal = Vector3.up;
+        }
+
+        this.transform.position = position;
+        this.velocity = Vector3.zero;
     }
 
     protected void OnDrawGizmos() {
