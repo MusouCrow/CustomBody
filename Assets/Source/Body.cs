@@ -98,23 +98,18 @@ public class Body : MonoBehaviour {
         }
 
         var velocity = Mathf.Approximately(this.velocity.y, 0) ? Vector3.ProjectOnPlane(this.velocity, this.normal) : this.velocity;
-        var direction = velocity.normalized;
-        var distance = velocity.magnitude;
         var position = this.transform.position;
         var offset = this.collider.center + Vector3.up * this.stepOffset;
         var center = position + offset;
         var size = this.collider.size * 0.5f;
         RaycastHit hit;
+
+        position.x += this.MoveDirection(center, size, velocity, 0);
+        position.y += this.MoveDirection(center, size, velocity, 1);
+        position.z += this.MoveDirection(center, size, velocity, 2);
         
-        bool ok = Physics.BoxCast(center, size, direction, out hit, Quaternion.identity, distance);
-        
-        if (ok) {
-            distance = hit.distance - MIN_RANGE;
-        }
-        
-        position += distance * direction;
         center = position + offset;
-        ok = Physics.BoxCast(center, size, Vector3.down, out hit, Quaternion.identity, 100);
+        bool ok = Physics.BoxCast(center, size, Vector3.down, out hit, Quaternion.identity, 100);
         
         if (ok) {
             this.IsGrounded = hit.distance <= this.stepOffset + MIN_RANGE;
@@ -131,7 +126,7 @@ public class Body : MonoBehaviour {
             this.normal = Vector3.up;
             this.groundY = position.y;
         }
-
+        
         this.SetPosition(position);
     }
     
@@ -147,6 +142,21 @@ public class Body : MonoBehaviour {
         if (adjust) {
             this.AdjustPosition();
         }
+    }
+
+    private float MoveDirection(Vector3 center, Vector3 size, Vector3 velocity, int index) {
+        if (velocity[index] == 0) {
+            return 0;
+        }
+
+        var distance = Mathf.Abs(velocity[index]);
+        var direction = new Vector3();
+        direction[index] = velocity[index] > 0 ? 1 : -1;
+        RaycastHit hit;
+
+        bool ok = Physics.BoxCast(center, size, direction, out hit, Quaternion.identity, distance);
+
+        return ok ? (hit.distance - MIN_RANGE) * direction[index] : velocity[index];
     }
     
     private void AdjustPosition() {
