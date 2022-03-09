@@ -100,16 +100,14 @@ public class Body : MonoBehaviour {
         var velocity = Mathf.Approximately(this.velocity.y, 0) ? Vector3.ProjectOnPlane(this.velocity, this.normal) : this.velocity;
         var position = this.transform.position;
         var offset = this.collider.center + Vector3.up * this.stepOffset;
-        var center = position + offset;
         var size = this.collider.size * 0.5f;
         RaycastHit hit;
 
-        position.x += this.MoveDirection(center, size, velocity, 0);
-        position.y += this.MoveDirection(center, size, velocity, 1);
-        position.z += this.MoveDirection(center, size, velocity, 2);
-        
-        center = position + offset;
-        bool ok = Physics.BoxCast(center, size, Vector3.down, out hit, Quaternion.identity, 100);
+        position.x += this.MoveDirection(position + offset, size, velocity, 0);
+        position.y += this.MoveDirection(position + offset, size, velocity, 1);
+        position.z += this.MoveDirection(position + offset, size, velocity, 2);
+
+        bool ok = Physics.BoxCast(position + offset, size, Vector3.down, out hit, Quaternion.identity, 100);
         
         if (ok) {
             this.IsGrounded = hit.distance <= this.stepOffset + MIN_RANGE;

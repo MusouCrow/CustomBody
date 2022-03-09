@@ -57,7 +57,7 @@ public class Controller : MonoBehaviour {
             this.velocity = Vector3.zero;
         }
 
-        if (this.transform.position.y < -1000) {
+        if (this.transform.position.y < -100) {
             this.body.SetPosition(this.body.LegalPosition, true);
         }
     }
