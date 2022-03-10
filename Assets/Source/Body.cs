@@ -11,8 +11,10 @@ public class Body : MonoBehaviour {
 
     private Vector3 velocity;
     private Vector3 normal;
+    private Vector3 drop;
     private EaseMove gravityMove;
     private float groundY;
+    private Vector3 direction;
 
     public float Gravity {
         get {
@@ -83,6 +85,10 @@ public class Body : MonoBehaviour {
             this.gravityMove.Power = 0;
         }
 
+        if (this.drop != Vector3.zero) {
+            this.velocity = this.IsGrounded ? this.drop : this.drop * 0.5f;
+        }
+
         this.gravityMove.Update();
 
         if (this.IsGrounded) {
@@ -107,6 +113,10 @@ public class Body : MonoBehaviour {
         position.y += this.MoveDirection(position + offset, size, velocity, 1);
         position.z += this.MoveDirection(position + offset, size, velocity, 2);
 
+        if (velocity.x != 0 || velocity.z != 0) {
+            this.direction = velocity.normalized;
+        }
+
         bool ok = Physics.BoxCast(position + offset, size, Vector3.down, out hit, Quaternion.identity, 100);
         
         if (ok) {
@@ -116,7 +126,14 @@ public class Body : MonoBehaviour {
 
             if (this.IsGrounded) {
                 position.y = this.groundY;
-                this.CheckLegalPosition(hit, position);
+                
+                if (hit.collider.material.bounciness > 0 && this.drop == Vector3.zero) {
+                    this.drop = new Vector3(-this.direction.x, 0, -this.direction.z);
+                }
+                else if (hit.collider.material.bounciness == 0) {
+                    this.drop = Vector3.zero;
+                    this.CheckLegalPosition(hit, position);
+                }
             }
         }
         else {
