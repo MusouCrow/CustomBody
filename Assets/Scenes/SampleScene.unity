@@ -791,8 +791,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   radius: 1
   height: 3
-  distance: 10
-  direction: {x: 0, y: -1, z: 1}
+  velocity: {x: 0, y: 0, z: 10}
 --- !u!4 &1783548787
 Transform:
   m_ObjectHideFlags: 0
