@@ -6,6 +6,7 @@ public class Tester : MonoBehaviour {
     public Vector3 velocity;
 
     private Vector3 target;
+    private Vector3 normal;
     private GameObject aim;
 
     protected void Awake() {
@@ -33,10 +34,12 @@ public class Tester : MonoBehaviour {
         bool ok = Physics.CapsuleCast(p1, p2, this.radius, direction, out hit, distance);
 
         if (ok) {
-            this.target = hit.point - row;
+            this.target = position + direction * hit.distance;
+            this.normal = hit.normal;
         }
         else {
             this.target = position + direction * distance;
+            this.normal = Vector3.zero;
         }
 
         this.aim.transform.position = this.target;
@@ -45,6 +48,9 @@ public class Tester : MonoBehaviour {
     protected void OnDrawGizmos() {
         Gizmos.color = Color.white;
         Gizmos.DrawLine(this.transform.position, this.target);
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawRay(this.target, this.normal);
 
         Gizmos.color = Color.red;
         Gizmos.DrawSphere(this.target, 0.1f);
