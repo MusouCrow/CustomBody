@@ -1,6 +1,8 @@
 using UnityEngine;
 
 public class Tester : MonoBehaviour {
+    public enum CastType {Box, Capsule};
+
     public struct CastHit {
         public bool collided;
         public Vector3 position;
@@ -10,6 +12,7 @@ public class Tester : MonoBehaviour {
         public GameObject gameObject;
     }
 
+    public CastType castType;
     public float radius = 1;
     public float height = 1.5f;
     public float slopeLimit = 45;
@@ -26,6 +29,10 @@ public class Tester : MonoBehaviour {
 
     public Vector3 Position {
         get {
+            if (this.castType == CastType.Box) {
+                return this.transform.position;
+            }
+
             return this.transform.position + Vector3.up * 0.001f;
         }
     }
@@ -50,11 +57,11 @@ public class Tester : MonoBehaviour {
             return;
         }
 
-        this.DrawBoxGizmos(this.Position, Color.yellow);
-        this.DrawBoxGizmos(this.moveHit.position, Color.green);
+        this.DrawUnitGizmos(this.Position, Color.yellow);
+        this.DrawUnitGizmos(this.moveHit.position, Color.green);
 
         if (!this.InGround) {
-            this.DrawBoxGizmos(this.groundHit.position, Color.black);
+            this.DrawUnitGizmos(this.groundHit.position, Color.black);
         }
 
         Gizmos.color = Color.blue;
@@ -80,12 +87,21 @@ public class Tester : MonoBehaviour {
         Gizmos.DrawLine(this.Position, this.Position + this.velocity);
     }
 
+    private void DrawUnitGizmos(Vector3 position, Color color) {
+        if (this.castType == CastType.Box) {
+            this.DrawBoxGizmos(position, color);
+        }
+        else {
+            this.DrawCapsuleGizmos(position, color);
+        }
+    }
+
     private void DrawBoxGizmos(Vector3 position, Color color) {
-        var size = new Vector3(this.radius, this.height, this.radius);
+        var size = new Vector3(this.radius, this.height, this.radius) * 2;
         var height = this.height * Vector3.up;
 
         Gizmos.color = color;
-        Gizmos.DrawWireCube(position + height * 0.5f, size);
+        Gizmos.DrawWireCube(position + height, size);
     }
 
     private void DrawCapsuleGizmos(Vector3 position, Color color) {
@@ -100,12 +116,12 @@ public class Tester : MonoBehaviour {
     }
 
     private void CheckGround() {
-        this.groundHit = this.BoxCast(this.Position, Vector3.down, 100);
+        this.groundHit = this.CollideCast(this.Position, Vector3.down, 100);
     }
 
     private CastHit Simulate(Vector3 position, Vector3 direction, float distance, Vector3 normal, ref int count) {
         var planeDir = Vector3.ProjectOnPlane(direction, normal);
-        var hit = this.BoxCast(position, planeDir, distance);
+        var hit = this.CollideCast(position, planeDir, distance);
         count++;
 
         if (hit.collided && distance - hit.distance > 0.1f && this.IsLegalSlope(hit.normal)) {
@@ -119,6 +135,14 @@ public class Tester : MonoBehaviour {
         float angle = Vector3.Angle(Vector3.up, normal);
 
         return angle <= this.slopeLimit;
+    }
+
+    private CastHit CollideCast(Vector3 position, Vector3 direction, float distance) {
+        if (this.castType == CastType.Box) {
+            return this.BoxCast(position, direction, distance);
+        }
+
+        return this.CapsuleCast(position, direction, distance);
     }
 
     private CastHit CapsuleCast(Vector3 position, Vector3 direction, float distance) {
@@ -152,9 +176,8 @@ public class Tester : MonoBehaviour {
     private CastHit BoxCast(Vector3 position, Vector3 direction, float distance) {
         RaycastHit hit;
         var height = Vector3.up * this.height;
-        var radius = Vector3.up * this.radius;
-        var extents = new Vector3(this.radius, this.height, this.radius) * 0.5f;
-        bool collided = Physics.BoxCast(position + height * 0.5f, extents, direction, out hit, Quaternion.identity, distance);
+        var extents = new Vector3(this.radius, this.height, this.radius);
+        bool collided = Physics.BoxCast(position + height, extents, direction, out hit, Quaternion.identity, distance);
 
         Vector3 normal = Vector3.zero;
         GameObject gameObject = null;
