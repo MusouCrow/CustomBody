@@ -3,7 +3,7 @@ using UnityEngine;
 public class Tester : MonoBehaviour {
     public struct CastHit {
         public bool collided;
-        public Vector3 point;
+        public Vector3 position;
         public Vector3 normal;
         public Vector3 direction;
         public float distance;
@@ -12,6 +12,7 @@ public class Tester : MonoBehaviour {
 
     public float radius = 1;
     public float height = 1.5f;
+    public float slopeLimit = 45;
     public Vector3 velocity;
 
     private CastHit groundHit;
@@ -23,18 +24,25 @@ public class Tester : MonoBehaviour {
         }
     }
 
+    public Vector3 Position {
+        get {
+            return this.transform.position + Vector3.up * 0.001f;
+        }
+    }
+
     protected void Update() {        
         this.CheckGround();
 
         var direction = this.velocity.normalized;
         var distance = this.velocity.magnitude;
+        var normal = Vector3.up;
+        int count = 0;
 
-        if (this.velocity.y.Equal(0) && this.InGround) {
-            this.moveHit = this.SimulateLand(this.transform.position, direction, distance);
+        if (this.velocity.y.Equal(0) && this.InGround && this.IsLegalSlope(this.groundHit.normal)) {
+            normal = this.groundHit.normal;
         }
-        else {
-            this.moveHit = this.SimulateFree(this.transform.position, direction, distance);
-        }
+
+        this.moveHit = this.Simulate(this.Position, direction, distance, normal, ref count);
     }
 
     protected void OnDrawGizmos() {
@@ -42,16 +50,20 @@ public class Tester : MonoBehaviour {
             return;
         }
 
-        this.DrawCapsuleGizmos(this.transform.position, Color.yellow);
-        this.DrawCapsuleGizmos(this.moveHit.point, Color.green);
+        this.DrawCapsuleGizmos(this.Position, Color.yellow);
+        this.DrawCapsuleGizmos(this.moveHit.position, Color.green);
 
         if (!this.InGround) {
-            this.DrawCapsuleGizmos(this.groundHit.point, Color.black);
+            this.DrawCapsuleGizmos(this.groundHit.position, Color.black);
         }
         else {
-            Gizmos.color = Color.red;
+            Gizmos.color = Color.blue;
+
             var normal = Vector3.ProjectOnPlane(this.transform.forward, this.groundHit.normal);
-            Gizmos.DrawRay(this.groundHit.point, normal);
+            Gizmos.DrawRay(this.groundHit.position, normal);
+
+            normal = Vector3.ProjectOnPlane(this.moveHit.direction, this.moveHit.normal);
+            Gizmos.DrawRay(this.moveHit.position, normal);
         }
 
         if (this.groundHit.gameObject) {
@@ -66,7 +78,7 @@ public class Tester : MonoBehaviour {
         }
 
         Gizmos.color = Color.white;
-        Gizmos.DrawLine(this.transform.position, this.moveHit.point);
+        Gizmos.DrawLine(this.Position, this.Position + this.velocity);
     }
 
     private void DrawCapsuleGizmos(Vector3 position, Color color) {
@@ -81,19 +93,25 @@ public class Tester : MonoBehaviour {
     }
 
     private void CheckGround() {
-        this.groundHit = this.CapsuleCast(this.transform.position, Vector3.down, 100);
+        this.groundHit = this.CapsuleCast(this.Position, Vector3.down, 100);
     }
 
-    private CastHit SimulateFree(Vector3 position, Vector3 direction, float distance) {
-        var hit = this.CapsuleCast(position, direction, distance);
+    private CastHit Simulate(Vector3 position, Vector3 direction, float distance, Vector3 normal, ref int count) {
+        var planeDir = Vector3.ProjectOnPlane(direction, normal);
+        var hit = this.CapsuleCast(position, planeDir, distance);
+        count++;
+
+        if (hit.collided && distance - hit.distance > 0.1f && this.IsLegalSlope(hit.normal)) {
+            return this.Simulate(hit.position, direction, distance - hit.distance, hit.normal, ref count);
+        }
         
         return hit;
     }
 
-    private CastHit SimulateLand(Vector3 position, Vector3 direction, float distance) {
-        var hit = this.CapsuleCast(position, direction, distance);
-        
-        return hit;
+    private bool IsLegalSlope(Vector3 normal) {
+        float angle = Vector3.Angle(Vector3.up, normal);
+
+        return angle <= this.slopeLimit;
     }
 
     private CastHit CapsuleCast(Vector3 position, Vector3 direction, float distance) {
@@ -117,11 +135,9 @@ public class Tester : MonoBehaviour {
             gameObject = hit.collider.gameObject;
         }
 
-        Vector3 point = position + direction * distance;
-
         return new CastHit() {
             collided = collided,
-            point = point,
+            position = position + direction * distance,
             normal = normal,
             direction = direction,
             distance = distance,
