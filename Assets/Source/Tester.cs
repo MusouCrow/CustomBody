@@ -29,11 +29,7 @@ public class Tester : MonoBehaviour {
 
     public Vector3 Position {
         get {
-            if (this.castType == CastType.Box) {
-                return this.transform.position;
-            }
-
-            return this.transform.position + Vector3.up * 0.001f;
+            return this.transform.position;
         }
     }
 
@@ -45,11 +41,20 @@ public class Tester : MonoBehaviour {
         var normal = Vector3.up;
         int count = 0;
         
-        if (this.velocity.y.Equal(0) && this.InGround && this.IsLegalSlope(this.groundHit.normal)) {
-            normal = this.groundHit.normal;
+        if (this.velocity.y.Equal(0) && this.InGround) {
+            normal = this.IsLegalSlope(this.groundHit.normal) ? this.groundHit.normal : Vector3.zero;
         }
-        
-        this.moveHit = this.Simulate(this.Position, direction, distance, normal, ref count);
+
+        if (!normal.Equal(Vector3.zero)) {
+            this.moveHit = this.Simulate(this.Position, direction, distance, normal, ref count);
+        }
+
+        if (Input.GetKeyDown(KeyCode.Space)) {
+            this.transform.position = this.moveHit.position;
+        }
+        else if (Input.GetKeyDown(KeyCode.Return)) {
+            this.transform.position = this.groundHit.position;
+        }
     }
 
     protected void OnDrawGizmos() {
@@ -158,7 +163,7 @@ public class Tester : MonoBehaviour {
         GameObject gameObject = null;
 
         if (collided) {
-            distance = hit.distance;
+            distance = hit.distance - 0.001f;
             normal = hit.normal;
             gameObject = hit.collider.gameObject;
         }
@@ -183,7 +188,7 @@ public class Tester : MonoBehaviour {
         GameObject gameObject = null;
 
         if (collided) {
-            distance = hit.distance;
+            distance = hit.distance - 0.001f;
             normal = hit.normal;
             gameObject = hit.collider.gameObject;
         }
