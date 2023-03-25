@@ -37,11 +37,11 @@ public class Tester : MonoBehaviour {
         var distance = this.velocity.magnitude;
         var normal = Vector3.up;
         int count = 0;
-
+        
         if (this.velocity.y.Equal(0) && this.InGround && this.IsLegalSlope(this.groundHit.normal)) {
             normal = this.groundHit.normal;
         }
-
+        
         this.moveHit = this.Simulate(this.Position, direction, distance, normal, ref count);
     }
 
@@ -50,21 +50,20 @@ public class Tester : MonoBehaviour {
             return;
         }
 
-        this.DrawCapsuleGizmos(this.Position, Color.yellow);
-        this.DrawCapsuleGizmos(this.moveHit.position, Color.green);
+        this.DrawBoxGizmos(this.Position, Color.yellow);
+        this.DrawBoxGizmos(this.moveHit.position, Color.green);
 
         if (!this.InGround) {
-            this.DrawCapsuleGizmos(this.groundHit.position, Color.black);
+            this.DrawBoxGizmos(this.groundHit.position, Color.black);
         }
-        else {
-            Gizmos.color = Color.blue;
 
-            var normal = Vector3.ProjectOnPlane(this.transform.forward, this.groundHit.normal);
-            Gizmos.DrawRay(this.groundHit.position, normal);
+        Gizmos.color = Color.blue;
 
-            normal = Vector3.ProjectOnPlane(this.moveHit.direction, this.moveHit.normal);
-            Gizmos.DrawRay(this.moveHit.position, normal);
-        }
+        var normal = Vector3.ProjectOnPlane(this.transform.forward, this.groundHit.normal);
+        Gizmos.DrawRay(this.groundHit.position, normal);
+
+        normal = Vector3.ProjectOnPlane(this.moveHit.direction, this.moveHit.normal);
+        Gizmos.DrawRay(this.moveHit.position, normal);
 
         if (this.groundHit.gameObject) {
             var go = this.groundHit.gameObject;
@@ -81,6 +80,14 @@ public class Tester : MonoBehaviour {
         Gizmos.DrawLine(this.Position, this.Position + this.velocity);
     }
 
+    private void DrawBoxGizmos(Vector3 position, Color color) {
+        var size = new Vector3(this.radius, this.height, this.radius);
+        var height = this.height * Vector3.up;
+
+        Gizmos.color = color;
+        Gizmos.DrawWireCube(position + height * 0.5f, size);
+    }
+
     private void DrawCapsuleGizmos(Vector3 position, Color color) {
         var radius = this.radius * Vector3.up;
         var height = this.height * Vector3.up;
@@ -93,18 +100,18 @@ public class Tester : MonoBehaviour {
     }
 
     private void CheckGround() {
-        this.groundHit = this.CapsuleCast(this.Position, Vector3.down, 100);
+        this.groundHit = this.BoxCast(this.Position, Vector3.down, 100);
     }
 
     private CastHit Simulate(Vector3 position, Vector3 direction, float distance, Vector3 normal, ref int count) {
         var planeDir = Vector3.ProjectOnPlane(direction, normal);
-        var hit = this.CapsuleCast(position, planeDir, distance);
+        var hit = this.BoxCast(position, planeDir, distance);
         count++;
 
         if (hit.collided && distance - hit.distance > 0.1f && this.IsLegalSlope(hit.normal)) {
             return this.Simulate(hit.position, direction, distance - hit.distance, hit.normal, ref count);
         }
-        
+
         return hit;
     }
 
@@ -115,9 +122,6 @@ public class Tester : MonoBehaviour {
     }
 
     private CastHit CapsuleCast(Vector3 position, Vector3 direction, float distance) {
-        var shift = new Vector3(this.radius, this.height, this.radius);
-        shift = shift.Mul(direction);
-        
         var height = Vector3.up * this.height;
         var radius = Vector3.up * this.radius;
 
@@ -126,6 +130,32 @@ public class Tester : MonoBehaviour {
         RaycastHit hit;
         bool collided = Physics.CapsuleCast(p1, p2, this.radius, direction, out hit, distance);
         
+        Vector3 normal = Vector3.zero;
+        GameObject gameObject = null;
+
+        if (collided) {
+            distance = hit.distance;
+            normal = hit.normal;
+            gameObject = hit.collider.gameObject;
+        }
+
+        return new CastHit() {
+            collided = collided,
+            position = position + direction * distance,
+            normal = normal,
+            direction = direction,
+            distance = distance,
+            gameObject = gameObject
+        };
+    }
+
+    private CastHit BoxCast(Vector3 position, Vector3 direction, float distance) {
+        RaycastHit hit;
+        var height = Vector3.up * this.height;
+        var radius = Vector3.up * this.radius;
+        var extents = new Vector3(this.radius, this.height, this.radius) * 0.5f;
+        bool collided = Physics.BoxCast(position + height * 0.5f, extents, direction, out hit, Quaternion.identity, distance);
+
         Vector3 normal = Vector3.zero;
         GameObject gameObject = null;
 
