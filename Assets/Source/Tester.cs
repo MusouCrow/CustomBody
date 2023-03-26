@@ -124,6 +124,14 @@ public class Tester : MonoBehaviour {
     private void CheckGround() {
         this.groundHit = this.CollideCast(this.Position, Vector3.down, 100);
         this.InGround = this.groundHit.distance <= 0.1f && this.IsLegalSlope(this.groundHit.normal);
+
+        RaycastHit hit;
+        bool ok = Physics.Raycast(this.Position, Vector3.down, out hit, 100);
+        this.groundHit.normal = ok ? hit.normal : Vector3.up;
+
+        if (this.InGround && this.velocity.y < 0) {
+            this.velocity.y = 0;
+        }
     }
 
     private CastHit Simulate(Vector3 position, Vector3 direction, float distance, Vector3 normal, ref int count) {
@@ -168,7 +176,7 @@ public class Tester : MonoBehaviour {
         var dir = Vector3.ProjectOnPlane(direction, normal);
         dir.y = direction.y;
 
-        return dir;
+        return dir.normalized;
     }
 
     private CastHit CollideCast(Vector3 position, Vector3 direction, float distance) {
