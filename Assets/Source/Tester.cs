@@ -22,9 +22,8 @@ public class Tester : MonoBehaviour {
     private CastHit moveHit;
 
     public bool InGround {
-        get {
-            return this.groundHit.distance <= 0.1f;
-        }
+        get;
+        private set;
     }
 
     public Vector3 Position {
@@ -38,16 +37,14 @@ public class Tester : MonoBehaviour {
 
         var direction = this.velocity.normalized;
         var distance = this.velocity.magnitude;
-        var normal = Vector3.up;
+        var normal = Vector3.zero;
         int count = 0;
         
         if (this.velocity.y.Equal(0) && this.InGround) {
-            normal = this.IsLegalSlope(this.groundHit.normal) ? this.groundHit.normal : Vector3.zero;
+            normal = this.groundHit.normal;
         }
 
-        if (!normal.Equal(Vector3.zero)) {
-            this.moveHit = this.Simulate(this.Position, direction, distance, normal, ref count);
-        }
+        this.moveHit = this.Simulate(this.Position, direction, distance, normal, ref count);
 
         if (Input.GetKeyDown(KeyCode.Space)) {
             this.transform.position = this.moveHit.position;
@@ -69,15 +66,22 @@ public class Tester : MonoBehaviour {
             this.DrawUnitGizmos(this.groundHit.position, Color.black);
         }
 
-        Gizmos.color = Color.blue;
+        Gizmos.color = Color.white;
+        Gizmos.DrawLine(this.Position, this.Position + this.velocity);
 
-        var normal = Vector3.ProjectOnPlane(this.transform.forward, this.groundHit.normal);
-        Gizmos.DrawRay(this.groundHit.position, normal);
+        if (this.moveHit.collided) {
+            var direction = this.ToShiftDirection(this.moveHit.direction, this.moveHit.normal);
 
-        normal = Vector3.ProjectOnPlane(this.moveHit.direction, this.moveHit.normal);
-        Gizmos.DrawRay(this.moveHit.position, normal);
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(this.moveHit.position, direction);
+        }
 
-        if (this.groundHit.gameObject) {
+        if (this.groundHit.collided) {
+            var normal = Vector3.ProjectOnPlane(this.transform.forward, this.groundHit.normal);
+
+            Gizmos.color = Color.blue;
+            Gizmos.DrawRay(this.groundHit.position, normal);
+
             var go = this.groundHit.gameObject;
             var t = go.transform;
             var filter = go.GetComponent<MeshFilter>();
@@ -87,9 +91,6 @@ public class Tester : MonoBehaviour {
                 Gizmos.DrawMesh(filter.sharedMesh, 0, t.position, t.rotation, t.lossyScale);
             }
         }
-
-        Gizmos.color = Color.white;
-        Gizmos.DrawLine(this.Position, this.Position + this.velocity);
     }
 
     private void DrawUnitGizmos(Vector3 position, Color color) {
@@ -122,17 +123,38 @@ public class Tester : MonoBehaviour {
 
     private void CheckGround() {
         this.groundHit = this.CollideCast(this.Position, Vector3.down, 100);
+        this.InGround = this.groundHit.distance <= 0.1f && this.IsLegalSlope(this.groundHit.normal);
     }
 
     private CastHit Simulate(Vector3 position, Vector3 direction, float distance, Vector3 normal, ref int count) {
-        var planeDir = Vector3.ProjectOnPlane(direction, normal);
+        var planeDir = normal.Equal(Vector3.zero) ? direction : Vector3.ProjectOnPlane(direction, normal);
         var hit = this.CollideCast(position, planeDir, distance);
         count++;
 
-        if (hit.collided && distance - hit.distance > 0.1f && this.IsLegalSlope(hit.normal)) {
-            return this.Simulate(hit.position, direction, distance - hit.distance, hit.normal, ref count);
-        }
+        // Debug.Log(position + ", " + direction + ", " + distance + ", " + normal + ", " + count);
+        
+        if (hit.collided && distance - hit.distance > 0.1f) {
+            bool pass = false;
+            var shift = this.ToShiftDirection(direction, hit.normal);
 
+            if (this.IsLegalSlope(hit.normal)) {
+                normal = hit.normal;
+                pass = true;
+            }
+            else {
+                normal = Vector3.zero;
+            }
+            
+            if (hit.distance <= 0.1f && !shift.Equal(Vector3.zero) && count == 1) {
+                direction = shift;
+                pass = true;
+            }
+            
+            if (pass) {
+                return this.Simulate(hit.position, direction, distance - hit.distance, normal, ref count);
+            }
+        }
+        
         return hit;
     }
 
@@ -140,6 +162,13 @@ public class Tester : MonoBehaviour {
         float angle = Vector3.Angle(Vector3.up, normal);
 
         return angle <= this.slopeLimit;
+    }
+
+    private Vector3 ToShiftDirection(Vector3 direction, Vector3 normal) {
+        var dir = Vector3.ProjectOnPlane(direction, normal);
+        dir.y = direction.y;
+
+        return dir;
     }
 
     private CastHit CollideCast(Vector3 position, Vector3 direction, float distance) {
