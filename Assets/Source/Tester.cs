@@ -16,10 +16,13 @@ public class Tester : MonoBehaviour {
     public float radius = 1;
     public float height = 1.5f;
     public float slopeLimit = 45;
+    public float stepOffset = 0.3f;
     public Vector3 velocity;
 
     private CastHit groundHit;
     private CastHit moveHit;
+    private bool stepTick;
+    private bool moveTick;
 
     public bool InGround {
         get;
@@ -33,8 +36,6 @@ public class Tester : MonoBehaviour {
     }
 
     protected void Update() {        
-        this.CheckGround();
-
         var direction = this.velocity.normalized;
         var distance = this.velocity.magnitude;
         var normal = Vector3.zero;
@@ -45,13 +46,20 @@ public class Tester : MonoBehaviour {
         }
 
         this.moveHit = this.Simulate(this.Position, direction, distance, normal, ref count);
-
+        
         if (Input.GetKeyDown(KeyCode.Space)) {
             this.transform.position = this.moveHit.position;
+            this.moveTick = true;
         }
         else if (Input.GetKeyDown(KeyCode.Return)) {
             this.transform.position = this.groundHit.position;
+            this.moveTick = true;
         }
+        
+        this.CheckGround();
+
+        this.stepTick = false;
+        this.moveTick = false;
     }
 
     protected void OnDrawGizmos() {
@@ -125,6 +133,14 @@ public class Tester : MonoBehaviour {
         this.groundHit = this.CollideCast(this.Position, Vector3.down, 100);
         this.InGround = this.groundHit.distance <= 0.1f && this.IsLegalSlope(this.groundHit.normal);
 
+        if (this.moveTick && this.stepTick) {
+            if (this.groundHit.distance <= this.stepOffset) {
+                var pos = this.transform.position;
+                pos.y = this.groundHit.position.y;
+                this.transform.position = pos;
+            }
+        }
+
         RaycastHit hit;
         bool ok = Physics.Raycast(this.Position, Vector3.down, out hit, 100);
         this.groundHit.normal = ok ? hit.normal : Vector3.up;
@@ -139,9 +155,21 @@ public class Tester : MonoBehaviour {
         var hit = this.CollideCast(position, planeDir, distance);
         count++;
 
+        var restDistance = distance - hit.distance;
+
         // Debug.Log(position + ", " + direction + ", " + distance + ", " + normal + ", " + count);
         
-        if (hit.collided && distance - hit.distance > 0.1f) {
+        if (count == 1 && this.stepOffset > 0 && hit.collided && restDistance > 0.1f && direction.y.Equal(0)) {
+            var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, planeDir, restDistance);
+
+            if (hit2.distance > 0.1f) {
+                hit = hit2;
+                restDistance = distance - hit.distance;
+                this.stepTick = true;
+            }
+        }
+        
+        if (hit.collided && restDistance > 0.1f) {
             bool pass = false;
             var shift = this.ToShiftDirection(direction, hit.normal);
 
@@ -159,7 +187,7 @@ public class Tester : MonoBehaviour {
             }
             
             if (pass) {
-                return this.Simulate(hit.position, direction, distance - hit.distance, normal, ref count);
+                return this.Simulate(hit.position, direction, restDistance, normal, ref count);
             }
         }
         
