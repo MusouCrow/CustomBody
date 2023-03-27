@@ -1,8 +1,6 @@
 using UnityEngine;
 
 public class Tester : MonoBehaviour {
-    public enum CastType {Box, Capsule};
-
     public struct CastHit {
         public bool collided;
         public Vector3 position;
@@ -12,7 +10,9 @@ public class Tester : MonoBehaviour {
         public GameObject gameObject;
     }
 
-    public CastType castType;
+    private Collider[] Overlaps = new Collider[2];
+    private float MinMoveDistance = 0.001f;
+
     public float radius = 1;
     public float height = 1.5f;
     public float slopeLimit = 45;
@@ -21,8 +21,8 @@ public class Tester : MonoBehaviour {
 
     private CastHit groundHit;
     private CastHit moveHit;
-    private bool stepTick;
-    private bool moveTick;
+    private new CapsuleCollider collider;
+    private Vector3 closest;
 
     public bool InGround {
         get;
@@ -31,11 +31,21 @@ public class Tester : MonoBehaviour {
 
     public Vector3 Position {
         get {
-            return this.transform.position;
+            return this.closest;
         }
     }
 
-    protected void Update() {        
+    protected void Awake() {
+        this.collider = this.gameObject.AddComponent<CapsuleCollider>();
+    }
+
+    protected void Update() {
+        this.collider.radius = this.radius;
+        this.collider.height = this.height + this.radius * 2;
+        this.collider.center = new Vector3(0, this.collider.height * 0.5f, 0);
+
+        this.FixOverlap();
+
         var direction = this.velocity.normalized;
         var distance = this.velocity.magnitude;
         var normal = Vector3.zero;
@@ -49,17 +59,12 @@ public class Tester : MonoBehaviour {
         
         if (Input.GetKeyDown(KeyCode.Space)) {
             this.transform.position = this.moveHit.position;
-            this.moveTick = true;
         }
         else if (Input.GetKeyDown(KeyCode.Return)) {
             this.transform.position = this.groundHit.position;
-            this.moveTick = true;
         }
         
         this.CheckGround();
-
-        this.stepTick = false;
-        this.moveTick = false;
     }
 
     protected void OnDrawGizmos() {
@@ -99,26 +104,12 @@ public class Tester : MonoBehaviour {
                 Gizmos.DrawMesh(filter.sharedMesh, 0, t.position, t.rotation, t.lossyScale);
             }
         }
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawSphere(this.closest, 0.1f);
     }
 
     private void DrawUnitGizmos(Vector3 position, Color color) {
-        if (this.castType == CastType.Box) {
-            this.DrawBoxGizmos(position, color);
-        }
-        else {
-            this.DrawCapsuleGizmos(position, color);
-        }
-    }
-
-    private void DrawBoxGizmos(Vector3 position, Color color) {
-        var size = new Vector3(this.radius, this.height, this.radius) * 2;
-        var height = this.height * Vector3.up;
-
-        Gizmos.color = color;
-        Gizmos.DrawWireCube(position + height, size);
-    }
-
-    private void DrawCapsuleGizmos(Vector3 position, Color color) {
         var radius = this.radius * Vector3.up;
         var height = this.height * Vector3.up;
 
@@ -133,6 +124,7 @@ public class Tester : MonoBehaviour {
         this.groundHit = this.CollideCast(this.Position, Vector3.down, 100);
         this.InGround = this.groundHit.distance <= 0.1f && this.IsLegalSlope(this.groundHit.normal);
 
+        /*
         if (this.moveTick && this.stepTick) {
             if (this.groundHit.distance <= this.stepOffset) {
                 var pos = this.transform.position;
@@ -140,6 +132,7 @@ public class Tester : MonoBehaviour {
                 this.transform.position = pos;
             }
         }
+        */
 
         RaycastHit hit;
         bool ok = Physics.Raycast(this.Position, Vector3.down, out hit, 100);
@@ -161,18 +154,20 @@ public class Tester : MonoBehaviour {
         
         if (count == 1 && this.stepOffset > 0 && hit.collided && restDistance > 0.1f && direction.y.Equal(0)) {
             var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, planeDir, restDistance);
+            
+            if (hit2.distance > restDistance * 0.5f) {
+                var hit3 = this.CollideCast(hit2.position, Vector3.down, this.stepOffset);
+                hit2.position.y = hit3.position.y;
 
-            if (hit2.distance > 0.1f) {
                 hit = hit2;
                 restDistance = distance - hit.distance;
-                this.stepTick = true;
             }
         }
         
         if (hit.collided && restDistance > 0.1f) {
             bool pass = false;
             var shift = this.ToShiftDirection(direction, hit.normal);
-
+            
             if (this.IsLegalSlope(hit.normal)) {
                 normal = hit.normal;
                 pass = true;
@@ -208,14 +203,6 @@ public class Tester : MonoBehaviour {
     }
 
     private CastHit CollideCast(Vector3 position, Vector3 direction, float distance) {
-        if (this.castType == CastType.Box) {
-            return this.BoxCast(position, direction, distance);
-        }
-
-        return this.CapsuleCast(position, direction, distance);
-    }
-
-    private CastHit CapsuleCast(Vector3 position, Vector3 direction, float distance) {
         var height = Vector3.up * this.height;
         var radius = Vector3.up * this.radius;
 
@@ -228,7 +215,7 @@ public class Tester : MonoBehaviour {
         GameObject gameObject = null;
 
         if (collided) {
-            distance = hit.distance - 0.001f;
+            distance = hit.distance - MinMoveDistance;
             normal = hit.normal;
             gameObject = hit.collider.gameObject;
         }
@@ -243,28 +230,31 @@ public class Tester : MonoBehaviour {
         };
     }
 
-    private CastHit BoxCast(Vector3 position, Vector3 direction, float distance) {
-        RaycastHit hit;
+    private bool FixOverlap() {
+        var position = this.transform.position;
         var height = Vector3.up * this.height;
-        var extents = new Vector3(this.radius, this.height, this.radius);
-        bool collided = Physics.BoxCast(position + height, extents, direction, out hit, Quaternion.identity, distance);
+        var radius = Vector3.up * this.radius;
 
-        Vector3 normal = Vector3.zero;
-        GameObject gameObject = null;
-
-        if (collided) {
-            distance = hit.distance - 0.001f;
-            normal = hit.normal;
-            gameObject = hit.collider.gameObject;
+        var p1 = position + radius;
+        var p2 = position + radius + height;
+        int count = Physics.OverlapCapsuleNonAlloc(p1, p2, this.radius - MinMoveDistance, Overlaps);
+        
+        if (count <= 1) {
+            this.closest = position;
+            return false;
         }
 
-        return new CastHit() {
-            collided = collided,
-            position = position + direction * distance,
-            normal = normal,
-            direction = direction,
-            distance = distance,
-            gameObject = gameObject
-        };
+        var collider = Overlaps[0] == this.collider ? Overlaps[1] : Overlaps[0];
+        Vector3 direction = Vector3.zero;
+        float distance = 0;
+        bool ok = Physics.ComputePenetration(
+            this.collider, position, this.transform.rotation,
+            collider, collider.transform.position, collider.transform.rotation, 
+            out direction, out distance
+        );
+
+        this.closest = position + direction * distance;
+
+        return true;
     }
 }
