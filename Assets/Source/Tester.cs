@@ -154,10 +154,11 @@ public class Tester : MonoBehaviour {
         
         if (count == 1 && this.stepOffset > 0 && hit.collided && restDistance > 0.1f && direction.y.Equal(0)) {
             var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, planeDir, restDistance);
-            
-            if (hit2.distance > restDistance * 0.5f) {
+
+            if (hit2.distance > 0.1f) {
                 var hit3 = this.CollideCast(hit2.position, Vector3.down, this.stepOffset);
                 hit2.position.y = hit3.position.y;
+                hit2.normal = hit.normal;
 
                 hit = hit2;
                 restDistance = distance - hit.distance;
