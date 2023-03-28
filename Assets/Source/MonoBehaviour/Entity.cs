@@ -2,8 +2,11 @@ using UnityEngine;
 
 public class Entity : MonoBehaviour {    
     private EaseMove gravityMove;
+    private EaseMove flightMove;
     private ControlMove controlMove;
     private Timer groundTimer;
+
+    public float gravityRate = 1;
 
     public KinematicBody Body {
         get;
@@ -20,6 +23,7 @@ public class Entity : MonoBehaviour {
         this.Body = new KinematicBody(this.transform, collider);
 
         this.gravityMove = new EaseMove(this.Body);
+        this.flightMove = new EaseMove(this.Body);
         this.controlMove = new ControlMove(this.Body, 0.1f);
         this.groundTimer = new Timer();
     }
@@ -27,6 +31,12 @@ public class Entity : MonoBehaviour {
     protected void Start() {
         this.groundTimer.Enter(1, this.FlushRebornPosition, true);
         this.FlushRebornPosition();
+    }
+
+    protected void Update() {
+        if (Input.GetKeyDown(KeyCode.Space) && this.Body.InGround) {
+            this.Flight(0.45f, 0.035f);
+        }
     }
 
     protected void FixedUpdate() {
@@ -37,12 +47,15 @@ public class Entity : MonoBehaviour {
             this.gravityMove.Exit();
         }
 
-        this.gravityMove.Update();
+        this.gravityMove.Update(this.gravityRate);
+        this.flightMove.Update();
+        this.groundTimer.Update(Time.fixedDeltaTime);
         this.controlMove.Update();
-        this.groundTimer.Update(Time.deltaTime);
-    }
-    
-    protected void LateUpdate() {
+
+        if (this.Body.InGround && !this.Body.InLegalGround && this.Body.Velocity.y <= 0) {
+            this.Body.Move(Vector3.down);
+        }
+
         this.Body.LateUpdate();
     }
 
@@ -56,5 +69,14 @@ public class Entity : MonoBehaviour {
 
     private void FlushRebornPosition() {
         this.RebornPosition = this.Body.LegalGroundPosition;
+    }
+
+    private void OnFlightEnd() {
+        this.gravityRate = 1;
+    }
+
+    public void Flight(float power, float speed) {
+        this.flightMove.Enter(power, speed, Vector3.up, false, this.OnFlightEnd);
+        this.gravityRate = 0;
     }
 }

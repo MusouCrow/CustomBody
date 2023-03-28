@@ -11,11 +11,11 @@ public class KinematicBody : IMover {
     }
 
     private Collider[] Overlaps = new Collider[2];
-    private float MinMoveDistance = 0.001f;
+    private float MinMoveDistance = 0.01f;
     private float GroundDistance = 100;
     private LayerMask LayerMask = LayerMask.GetMask("Default");
 
-    public float slopeLimit = 45;
+    public float slopeLimit = 30;
     public float stepOffset = 0.3f;
 
     private float radius;
@@ -70,6 +70,12 @@ public class KinematicBody : IMover {
         }
     }
 
+    public Vector3 GroundNormal {
+        get {
+            return this.groundHit.normal;
+        }
+    }
+
     public Vector3 LegalGroundPosition {
         get;
         private set;
@@ -104,11 +110,8 @@ public class KinematicBody : IMover {
             var velocity = this.Velocity;
 
             if (this.InGround) {
-                if (velocity.y.Equal(0)) {
+                if (velocity.y <= 0) {
                     normal = this.groundHit.normal;
-                }
-                else if (velocity.y < 0) {
-                    velocity.y = 0;
                 }
             }
 
@@ -164,24 +167,26 @@ public class KinematicBody : IMover {
 
         var restDistance = distance - hit.distance;
 
-        // Debug.Log(position + ", " + direction + ", " + distance + ", " + normal + ", " + count);
-        /*
-        if (hit.collided && count == 1 && this.stepOffset > 0 && restDistance > 0.1f && direction.y.Equal(0)) {
+        // Debug.Log(position + ", " + direction + ", " + distance + ", " + normal + ", " + planeDir + ", " + count);
+        
+        // 阶梯处理
+        if (hit.collided && count == 1 && this.stepOffset > 0 && restDistance > MinMoveDistance && direction.y <= 0) {
             var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, planeDir, restDistance);
 
-            if (hit2.distance > 0.1f) {
+            if (hit2.distance > MinMoveDistance) {
                 hit2.normal = hit.normal;
                 hit = hit2;
                 restDistance = distance - hit.distance;
                 this.stepTick = true;
             }
         }
-        */
         
         if (hit.collided && restDistance > MinMoveDistance) {
             bool pass = false;
             var shift = this.ToShiftDirection(direction, hit.normal);
             
+            // 多段平滑
+            /*
             if (this.IsLegalSlope(hit.normal)) {
                 normal = hit.normal;
                 pass = true;
@@ -189,32 +194,35 @@ public class KinematicBody : IMover {
             else {
                 normal = Vector3.zero;
             }
-            /*
-            if (hit.distance <= 0.1f && !shift.Equal(Vector3.zero) && count == 1) {
+            */
+            
+            // 滑动
+            if (hit.distance <= MinMoveDistance && !shift.Equal(Vector3.zero) && count < 3) {
                 direction = shift;
                 pass = true;
             }
-            */
+            
             if (pass) {
                 return this.Simulate(hit.position, direction, restDistance, normal, ref count);
             }
         }
-
+        
+        
         return hit;
     }
 
     private void CheckGround() {
         this.groundHit = this.CollideCast(this.position, Vector3.down, GroundDistance);
-        this.InGround = this.groundHit.distance <= 0.1f;
+        this.InGround = this.groundHit.distance <= MinMoveDistance;
         this.InLegalGround = this.InGround && this.IsLegalSlope(this.groundHit.normal);
-
+        // Debug.Log(this.groundHit.normal + ", " + this.InLegalGround);
         if (this.InLegalGround) {
             this.LegalGroundPosition = this.groundHit.position;
         }
 
-        RaycastHit hit;
-        bool ok = Physics.Raycast(this.position, Vector3.down, out hit, GroundDistance, LayerMask);
-        this.groundHit.normal = ok ? hit.normal : Vector3.up;
+        // RaycastHit hit;
+        // bool ok = Physics.Raycast(this.position, Vector3.down, out hit, GroundDistance, LayerMask);
+        // this.groundHit.normal = ok ? hit.normal : Vector3.up;
         
         if (this.stepTick) {
             if (this.groundHit.distance <= this.stepOffset) {
