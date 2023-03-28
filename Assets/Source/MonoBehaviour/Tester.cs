@@ -10,13 +10,13 @@ public class Tester : MonoBehaviour {
         public GameObject gameObject;
     }
 
-    private Collider[] Overlaps = new Collider[2];
-    private float MinMoveDistance = 0.001f;
+    private static Collider[] Overlaps = new Collider[2];
+    private static float MinMoveDistance = 0.001f;
+    private static float SlopeLimit = 45;
+    private static float StepOffset = 0.3f;
 
     public float radius = 1;
     public float height = 1.5f;
-    public float slopeLimit = 45;
-    public float stepOffset = 0.3f;
     public Vector3 velocity;
 
     private CastHit groundHit;
@@ -152,11 +152,11 @@ public class Tester : MonoBehaviour {
 
         // Debug.Log(position + ", " + direction + ", " + distance + ", " + normal + ", " + count);
         
-        if (count == 1 && this.stepOffset > 0 && hit.collided && restDistance > 0.1f && direction.y.Equal(0)) {
-            var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, planeDir, restDistance);
+        if (count == 1 && StepOffset > 0 && hit.collided && restDistance > 0.1f && direction.y.Equal(0)) {
+            var hit2 = this.CollideCast(hit.position + Vector3.up * StepOffset, planeDir, restDistance);
 
             if (hit2.distance > 0.1f) {
-                var hit3 = this.CollideCast(hit2.position, Vector3.down, this.stepOffset);
+                var hit3 = this.CollideCast(hit2.position, Vector3.down, StepOffset);
                 hit2.position.y = hit3.position.y;
                 hit2.normal = hit.normal;
 
@@ -193,7 +193,7 @@ public class Tester : MonoBehaviour {
     private bool IsLegalSlope(Vector3 normal) {
         float angle = Vector3.Angle(Vector3.up, normal);
 
-        return angle <= this.slopeLimit;
+        return angle <= SlopeLimit;
     }
 
     private Vector3 ToShiftDirection(Vector3 direction, Vector3 normal) {

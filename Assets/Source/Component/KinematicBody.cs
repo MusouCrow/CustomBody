@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class KinematicBody {
+public class KinematicBody : IMover {
     public struct CastHit {
         public bool collided;
         public Vector3 position;
@@ -12,6 +12,8 @@ public class KinematicBody {
 
     private Collider[] Overlaps = new Collider[2];
     private float MinMoveDistance = 0.001f;
+    private float GroundDistance = 100;
+    private LayerMask LayerMask = LayerMask.GetMask("Default");
 
     public float slopeLimit = 45;
     public float stepOffset = 0.3f;
@@ -24,6 +26,8 @@ public class KinematicBody {
     private CastHit groundHit;
     private bool stepTick;
     private bool overlapTick;
+    private bool setPositionTick;
+    private Vector3 settingPosition;
 
     public float Radius {
         get {
@@ -50,17 +54,33 @@ public class KinematicBody {
         private set;
     }
 
+    public bool InLegalGround {
+        get;
+        private set;
+    }
+
     public Vector3 Velocity {
         get;
         private set;
     }
 
-    public KinematicBody(Transform transform, float radius, float height) {
-        this.transform = transform;
-        this.radius = radius;
-        this.height = height;
+    public Vector3 GroundPosition {
+        get {
+            return new Vector3(this.position.x, this.groundHit.position.y, this.position.z);
+        }
+    }
 
-        this.collider = transform.gameObject.AddComponent<CapsuleCollider>();
+    public Vector3 LegalGroundPosition {
+        get;
+        private set;
+    }
+
+    public KinematicBody(Transform transform, CapsuleCollider collider) {
+        this.transform = transform;
+        this.collider = collider;
+        this.radius = collider.radius;
+        this.height = collider.height - this.radius * 2;
+
         this.FlushCollider();
     }
 
@@ -68,6 +88,12 @@ public class KinematicBody {
         bool tick = false;
 
         if (this.overlapTick) {
+            if (this.setPositionTick) {
+                this.transform.position = this.settingPosition;
+                this.setPositionTick = false;
+                this.Velocity = Vector3.zero;
+            }
+
             this.FixOverlap();
             this.overlapTick = false;
             tick = true;
@@ -91,6 +117,7 @@ public class KinematicBody {
             var distance = velocity.magnitude;
             var hit = this.Simulate(this.position, direction, distance, normal, ref count);
 
+            this.Velocity = Vector3.zero;
             this.position = hit.position;
             tick = true;
         }
@@ -99,6 +126,18 @@ public class KinematicBody {
             this.CheckGround();
             this.transform.position = position;
         }
+    }
+
+    public void DrawGizmos() {
+        var radius = this.radius * Vector3.up;
+        var height = this.height * Vector3.up;
+        
+        Gizmos.color = Color.red;
+        Gizmos.DrawSphere(this.position, 0.1f);
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(this.position + radius, this.radius);
+        Gizmos.DrawWireSphere(this.position + height + radius, this.radius);
     }
 
     public void FlushCollider() {
@@ -112,6 +151,12 @@ public class KinematicBody {
         this.Velocity += velocity;
     }
 
+    public void SetPosition(Vector3 position) {
+        this.settingPosition = position;
+        this.setPositionTick = true;
+        this.overlapTick = true;
+    }
+
     private CastHit Simulate(Vector3 position, Vector3 direction, float distance, Vector3 normal, ref int count) {
         var planeDir = normal.Equal(Vector3.zero) ? direction : Vector3.ProjectOnPlane(direction, normal);
         var hit = this.CollideCast(position, planeDir, distance);
@@ -120,7 +165,7 @@ public class KinematicBody {
         var restDistance = distance - hit.distance;
 
         // Debug.Log(position + ", " + direction + ", " + distance + ", " + normal + ", " + count);
-
+        /*
         if (hit.collided && count == 1 && this.stepOffset > 0 && restDistance > 0.1f && direction.y.Equal(0)) {
             var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, planeDir, restDistance);
 
@@ -131,11 +176,12 @@ public class KinematicBody {
                 this.stepTick = true;
             }
         }
-
-        if (hit.collided && restDistance > 0.1f) {
+        */
+        
+        if (hit.collided && restDistance > MinMoveDistance) {
             bool pass = false;
             var shift = this.ToShiftDirection(direction, hit.normal);
-
+            
             if (this.IsLegalSlope(hit.normal)) {
                 normal = hit.normal;
                 pass = true;
@@ -143,12 +189,12 @@ public class KinematicBody {
             else {
                 normal = Vector3.zero;
             }
-
+            /*
             if (hit.distance <= 0.1f && !shift.Equal(Vector3.zero) && count == 1) {
                 direction = shift;
                 pass = true;
             }
-
+            */
             if (pass) {
                 return this.Simulate(hit.position, direction, restDistance, normal, ref count);
             }
@@ -158,13 +204,18 @@ public class KinematicBody {
     }
 
     private void CheckGround() {
-        this.groundHit = this.CollideCast(this.position, Vector3.down, 100);
-        this.InGround = this.groundHit.distance <= 0.1f && this.IsLegalSlope(this.groundHit.normal);
+        this.groundHit = this.CollideCast(this.position, Vector3.down, GroundDistance);
+        this.InGround = this.groundHit.distance <= 0.1f;
+        this.InLegalGround = this.InGround && this.IsLegalSlope(this.groundHit.normal);
+
+        if (this.InLegalGround) {
+            this.LegalGroundPosition = this.groundHit.position;
+        }
 
         RaycastHit hit;
-        bool ok = Physics.Raycast(this.position, Vector3.down, out hit, 100);
+        bool ok = Physics.Raycast(this.position, Vector3.down, out hit, GroundDistance, LayerMask);
         this.groundHit.normal = ok ? hit.normal : Vector3.up;
-
+        
         if (this.stepTick) {
             if (this.groundHit.distance <= this.stepOffset) {
                 this.position.y = this.groundHit.position.y;
@@ -181,7 +232,7 @@ public class KinematicBody {
 
         var p1 = position + radius;
         var p2 = position + radius + height;
-        int count = Physics.OverlapCapsuleNonAlloc(p1, p2, this.radius - MinMoveDistance, Overlaps);
+        int count = Physics.OverlapCapsuleNonAlloc(p1, p2, this.radius - MinMoveDistance, Overlaps, LayerMask);
 
         if (count <= 1) {
             this.position = position;
@@ -210,7 +261,7 @@ public class KinematicBody {
         var p1 = position + radius;
         var p2 = position + radius + height;
         RaycastHit hit;
-        bool collided = Physics.CapsuleCast(p1, p2, this.radius, direction, out hit, distance);
+        bool collided = Physics.CapsuleCast(p1, p2, this.radius, direction, out hit, distance, LayerMask);
         
         Vector3 normal = Vector3.zero;
         GameObject gameObject = null;
