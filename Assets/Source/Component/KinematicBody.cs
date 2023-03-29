@@ -109,16 +109,18 @@ public class KinematicBody : IMover {
             var normal = Vector3.zero;
             var velocity = this.Velocity;
 
+            /*
             if (this.InGround) {
                 if (velocity.y <= 0) {
                     normal = this.groundHit.normal;
                 }
             }
+            */
 
             int count = 0;
             var direction = velocity.normalized;
             var distance = velocity.magnitude;
-            var hit = this.Simulate(this.position, direction, distance, normal, ref count);
+            var hit = this.Simulate(this.position, direction, distance, ref count);
 
             this.Velocity = Vector3.zero;
             this.position = hit.position;
@@ -159,55 +161,31 @@ public class KinematicBody : IMover {
         this.setPositionTick = true;
         this.overlapTick = true;
     }
-
-    private CastHit Simulate(Vector3 position, Vector3 direction, float distance, Vector3 normal, ref int count) {
-        var planeDir = normal.Equal(Vector3.zero) ? direction : Vector3.ProjectOnPlane(direction, normal);
-        var hit = this.CollideCast(position, planeDir, distance);
-        count++;
-
+    
+    private CastHit Simulate(Vector3 position, Vector3 direction, float distance, ref int count) {
+        var hit = this.CollideCast(position, direction, distance);
         var restDistance = distance - hit.distance;
-
-        // Debug.Log(position + ", " + direction + ", " + distance + ", " + normal + ", " + planeDir + ", " + count);
-        
-        // 阶梯处理
-        if (hit.collided && count == 1 && this.stepOffset > 0 && restDistance > MinMoveDistance && direction.y <= 0) {
-            var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, planeDir, restDistance);
+        count++;
+        /*
+        if (hit.collided && count == 1 && this.stepOffset > 0 && restDistance > MinMoveDistance) {
+            var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, direction, restDistance);
 
             if (hit2.distance > MinMoveDistance) {
-                hit2.normal = hit.normal;
                 hit = hit2;
                 restDistance = distance - hit.distance;
                 this.stepTick = true;
             }
         }
-        
-        if (hit.collided && restDistance > MinMoveDistance) {
-            bool pass = false;
-            var shift = this.ToShiftDirection(direction, hit.normal);
-            
-            // 多段平滑
-            /*
-            if (this.IsLegalSlope(hit.normal)) {
-                normal = hit.normal;
-                pass = true;
-            }
-            else {
-                normal = Vector3.zero;
-            }
-            */
-            
-            // 滑动
-            if (hit.distance <= MinMoveDistance && !shift.Equal(Vector3.zero) && count < 3) {
-                direction = shift;
-                pass = true;
-            }
-            
-            if (pass) {
-                return this.Simulate(hit.position, direction, restDistance, normal, ref count);
+        */
+        if (hit.collided && restDistance > MinMoveDistance && count < 3) {
+            var shift = Vector3.ProjectOnPlane(direction, hit.normal);
+            Debug.Log(count + ", " + direction + ", " + hit.normal + ", " + shift);
+
+            if (hit.distance <= MinMoveDistance && !shift.Equal(Vector3.zero)) {
+                return this.Simulate(hit.position, shift, restDistance, ref count);
             }
         }
-        
-        
+
         return hit;
     }
 
@@ -294,12 +272,5 @@ public class KinematicBody : IMover {
         float angle = Vector3.Angle(Vector3.up, normal);
 
         return angle <= this.slopeLimit;
-    }
-
-    private Vector3 ToShiftDirection(Vector3 direction, Vector3 normal) {
-        var dir = Vector3.ProjectOnPlane(direction, normal);
-        dir.y = direction.y;
-
-        return dir.normalized;
     }
 }
