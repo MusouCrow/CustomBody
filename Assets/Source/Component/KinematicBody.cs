@@ -148,12 +148,14 @@ public class KinematicBody : IMover, IBody {
         this.setPositionTick = true;
         this.overlapTick = true;
     }
+
+    public void OnControllerColliderHit(ControllerColliderHit hit) {}
     
     private CastHit Simulate(Vector3 position, Vector3 direction, float distance, ref int count) {
         var hit = this.CollideCast(position, direction, distance);
         var restDistance = distance - hit.distance;
         count++;
-        
+        /*
         if (hit.collided && count == 1 && this.stepOffset > 0 && restDistance > MinMoveDistance && !this.IsLegalSlope(hit.normal)) {
             var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, direction, restDistance);
             
@@ -163,7 +165,7 @@ public class KinematicBody : IMover, IBody {
                 this.stepTick = true;
             }
         }
-        
+        */
         if (hit.collided && restDistance > MinMoveDistance && count < 3) {
             var shift = Vector3.ProjectOnPlane(direction, hit.normal);
             // Debug.Log(count + ", " + direction + ", " + hit.normal + ", " + shift);

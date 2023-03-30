@@ -18,7 +18,7 @@ public interface IBody {
     }
 
     public void LateUpdate();
-    public void DrawGizmos();
     public void Move(Vector3 velocity);
     public void SetPosition(Vector3 position);
+    public void OnControllerColliderHit(ControllerColliderHit hit);
 }

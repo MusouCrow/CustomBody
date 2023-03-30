@@ -19,8 +19,9 @@ public class Entity : MonoBehaviour {
     }
 
     protected void Awake() {
-        var collider = this.GetComponent<CapsuleCollider>();
-        this.Body = new KinematicBody(this.transform, collider);
+        var collider = this.GetComponent<CharacterController>();
+        // this.Body = new KinematicBody(this.transform, collider);
+        this.Body = new UnityBody(this.transform, collider);
 
         var mover = this.Body as IMover;
         this.gravityMove = new EaseMove(mover);
@@ -55,17 +56,14 @@ public class Entity : MonoBehaviour {
 
         if (this.Body.InGround && !this.Body.InLegalGround && this.Body.Velocity.y <= 0) {
             this.Body.Move(Vector3.down * 0.3f);
+            // Debug.Log(123);
         }
 
         this.Body.LateUpdate();
     }
 
-    protected void OnDrawGizmosSelected() {
-        if (!Application.isPlaying) {
-            return;
-        }
-
-        this.Body.DrawGizmos();
+    protected void OnControllerColliderHit(ControllerColliderHit hit) {
+        this.Body.OnControllerColliderHit(hit);
     }
 
     private void FlushRebornPosition() {
