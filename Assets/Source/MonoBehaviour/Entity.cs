@@ -8,7 +8,7 @@ public class Entity : MonoBehaviour {
 
     public float gravityRate = 1;
 
-    public KinematicBody Body {
+    public IBody Body {
         get;
         private set;
     }
@@ -22,9 +22,10 @@ public class Entity : MonoBehaviour {
         var collider = this.GetComponent<CapsuleCollider>();
         this.Body = new KinematicBody(this.transform, collider);
 
-        this.gravityMove = new EaseMove(this.Body);
-        this.flightMove = new EaseMove(this.Body);
-        this.controlMove = new ControlMove(this.Body, 0.1f);
+        var mover = this.Body as IMover;
+        this.gravityMove = new EaseMove(mover);
+        this.flightMove = new EaseMove(mover);
+        this.controlMove = new ControlMove(mover, 0.1f);
         this.groundTimer = new Timer();
     }
 

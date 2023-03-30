@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class KinematicBody : IMover {
+public class KinematicBody : IMover, IBody {
     public struct CastHit {
         public bool collided;
         public Vector3 position;
@@ -67,12 +67,6 @@ public class KinematicBody : IMover {
     public Vector3 GroundPosition {
         get {
             return new Vector3(this.position.x, this.groundHit.position.y, this.position.z);
-        }
-    }
-
-    public Vector3 GroundNormal {
-        get {
-            return this.groundHit.normal;
         }
     }
 
