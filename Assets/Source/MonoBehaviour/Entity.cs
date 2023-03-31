@@ -54,7 +54,7 @@ public class Entity : MonoBehaviour {
         this.controlMove.Update();
 
         if (this.Body.InGround && !this.Body.InLegalGround && this.Body.Velocity.y <= 0) {
-            this.Body.Move(Vector3.down * 0.3f);
+            // this.Body.Move(Vector3.down * 0.3f);
         }
 
         this.Body.LateUpdate();

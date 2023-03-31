@@ -11,8 +11,8 @@ public class KinematicBody : IMover, IBody {
     }
 
     private Collider[] Overlaps = new Collider[2];
-    private float MinMoveDistance = 0.01f;
-    private float Interval = 0.01f;
+    private float MinMoveDistance = 0.001f;
+    private float Interval = 0.001f;
     private float GroundDistance = 100;
     private LayerMask LayerMask = LayerMask.GetMask("Default");
 
@@ -89,14 +89,15 @@ public class KinematicBody : IMover, IBody {
         bool tick = false;
 
         if (this.overlapTick) {
+            if (this.setPositionTick) {
+                this.Velocity = Vector3.zero;
+                this.setPositionTick = false;
+            }
+
+            this.FixOverlap();
+
             tick = true;
             this.overlapTick = false;
-        }
-
-        if (this.setPositionTick) {
-            this.Velocity = Vector3.zero;
-            this.setPositionTick = false;
-            tick = true;
         }
 
         if (!this.Velocity.Equal(Vector3.zero)) {
@@ -114,7 +115,6 @@ public class KinematicBody : IMover, IBody {
         }
         
         if (tick) {
-            this.FixOverlap();
             this.CheckGround();
             this.transform.position = this.position;
         }
@@ -153,7 +153,7 @@ public class KinematicBody : IMover, IBody {
         var hit = this.CollideCast(position, direction, distance);
         var restDistance = distance - hit.distance;
         count++;
-        
+        /*
         if (hit.collided && count == 1 && this.stepOffset > 0 && restDistance > MinMoveDistance && !this.IsLegalSlope(hit.normal)) {
             var hit2 = this.CollideCast(hit.position + Vector3.up * this.stepOffset, direction, restDistance);
             
@@ -163,10 +163,10 @@ public class KinematicBody : IMover, IBody {
                 this.stepTick = true;
             }
         }
-        
+        */
         if (hit.collided && restDistance > MinMoveDistance && count < 3) {
             var shift = Vector3.ProjectOnPlane(direction, hit.normal);
-            // Debug.Log(count + ", " + direction + ", " + hit.normal + ", " + shift);
+            Debug.Log(count + ", " + direction + ", " + hit.normal + ", " + shift + ", " + hit.distance);
 
             if (!shift.Equal(Vector3.zero)) {
                 return this.Simulate(hit.position, shift, restDistance, ref count);
@@ -233,13 +233,14 @@ public class KinematicBody : IMover, IBody {
         var p1 = position + radius;
         var p2 = position + radius + height;
         RaycastHit hit;
-        bool collided = Physics.CapsuleCast(p1, p2, this.radius, direction, out hit, distance, LayerMask);
+        bool collided = Physics.CapsuleCast(p1, p2, this.radius + Interval, direction, out hit, distance, LayerMask);
         
         Vector3 normal = Vector3.zero;
         GameObject gameObject = null;
 
         if (collided) {
             distance = hit.distance - Interval;
+            distance = distance <= 0 ? 0 : distance;
             normal = hit.normal;
             gameObject = hit.collider.gameObject;
         }
