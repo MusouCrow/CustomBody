@@ -5,15 +5,16 @@ public class Body {
     protected Transform transform;
     protected Turn turn;
     protected int movedFrame;
+    protected bool setPositionTick;
+    protected Vector3 nextPosition;
 
     public Vector3 Position {
         get {
             return this.transform.position;
         }
         set {
-            this.LatePosition = this.transform.position;
-            this.transform.position = value;
-            this.SetPositionEvent?.Invoke(value);
+            this.setPositionTick = true;
+            this.nextPosition = value;
         }
     }
 
@@ -61,9 +62,20 @@ public class Body {
     public Body(Transform transform) {
         this.transform = transform;
         this.turn = new Turn(transform);
+    }
 
+    public virtual void Start() {
         this.OriginPosition = this.Position;
         this.LatePosition = this.Position;
+    }
+
+    public virtual void Update(float dt) {
+        if (this.setPositionTick) {
+            this.LatePosition = this.transform.position;
+            this.transform.position = this.nextPosition;
+            this.SetPositionEvent?.Invoke(this.Position);
+            this.setPositionTick = false;
+        }
     }
 
     public virtual void Move(Vector3 velocity) {

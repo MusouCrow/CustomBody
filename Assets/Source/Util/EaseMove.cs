@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 public class EaseMove : IGear {
-    private IMover mover;
+    private Body body;
     private Ease ease;
 
     public Action OnExit;
@@ -37,8 +37,8 @@ public class EaseMove : IGear {
         protected set;
     }
 
-    public EaseMove(IMover mover) {
-        this.mover = mover;
+    public EaseMove(Body body) {
+        this.body = body;
         this.ease = new Ease();
     }
 
@@ -51,7 +51,7 @@ public class EaseMove : IGear {
 
         if (this.ease.IsRunning) {
             var fwd = this.GetForward(rate);
-            this.mover.Move(fwd);
+            this.body.Move(fwd);
         }
         else {
             this.Exit();

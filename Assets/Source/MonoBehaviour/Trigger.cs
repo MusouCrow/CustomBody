@@ -10,7 +10,7 @@ public class Trigger : MonoBehaviour {
             var entity = other.GetComponent<Entity>();
 
             if (entity) {
-                // entity.Body.SetPosition(entity.RebornPosition);
+                entity.Body.Position = entity.Body.RebornPosition;
             }
         }
     }

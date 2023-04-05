@@ -3,10 +3,10 @@ using UnityEngine;
 public class ControlMove {
     public float speed;
     
-    private IMover mover;
+    private Body body;
 
-    public ControlMove(IMover mover, float speed) {
-        this.mover = mover;
+    public ControlMove(Body body, float speed) {
+        this.body = body;
         this.speed = speed;
     }
 
@@ -28,7 +28,7 @@ public class ControlMove {
         }
 
         if (!direction.Equal(Vector3.zero)) {
-            this.mover.Move(direction.normalized * this.speed);
+            this.body.Move(direction.normalized * this.speed);
         }
     }
 }

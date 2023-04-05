@@ -26,38 +26,44 @@ public class Solid {
         private set;
     }
 
-    public Solid(GameObject gameObject) {
-        this.transform = gameObject.transform;
-        this.controller = gameObject.GetComponent<CharacterController>();
+    public RaycastHit GroundHit {
+        get;
+        private set;
+    }
+
+    public Solid(Transform transform, CharacterController controller) {
+        this.transform = transform;
+        this.controller = controller;
         this.layerMask = LayerMask.GetMask("Default");
     }
 
-    public void LateUpdate() {
-        bool tick = this.isTick || !this.velocity.Equal(Vector3.zero);
+    public void Start() {
+        this.Flush();
+    }
 
-        if (tick) {
+    public void Update() {
+        if (this.isTick || !this.velocity.Equal(Vector3.zero)) {
             if (this.controller.isGrounded && this.velocity.y.Equal(0)) {
                 this.velocity.y -= 0.1f; // 防止在地判定失误
             }
 
             this.controller.Move(this.velocity);
+
             bool inGround = this.controller.isGrounded;
-
-            if (!inGround || this.InGround != inGround) {
-                var hit = this.HitGround();
-
-                if (this.InGround != inGround) {
-                    if (this.InGround) {
-                        this.GroundEvent?.Invoke(hit);
-                    }
-                    else {
-                        this.FallEvent?.Invoke();
-                    }
-
-                    this.InGround = inGround;
+            var hit = this.HitGround();
+            
+            if (this.isTick || this.InGround != inGround) {
+                this.InGround = inGround;
+                
+                if (inGround) {
+                    this.GroundEvent?.Invoke(hit);
+                }
+                else {
+                    this.FallEvent?.Invoke();
                 }
             }
-
+            
+            this.GroundHit = hit;
             this.velocity = Vector3.zero;
             this.isTick = false;
         }
@@ -70,7 +76,8 @@ public class Solid {
 
     private RaycastHit HitGround() {
         RaycastHit hit;
-        bool ok = Physics.SphereCast(this.transform.position, this.controller.radius, Vector3.down, out hit, 100, this.layerMask);
+        // bool ok = Physics.SphereCast(this.transform.position, this.controller.radius, Vector3.down, out hit, 100, this.layerMask);
+        var ok = Physics.Raycast(this.transform.position, Vector3.down, out hit, 100, this.layerMask);
         var angle = Vector3.Angle(hit.normal, Vector3.up);
         
         this.GroundY = hit.point.y;
