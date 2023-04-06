@@ -34,6 +34,7 @@ public class Solid {
     public Solid(Transform transform, CharacterController controller) {
         this.transform = transform;
         this.controller = controller;
+        this.controller.material.staticFriction = 1;
         this.layerMask = LayerMask.GetMask("Default");
     }
 
@@ -76,12 +77,12 @@ public class Solid {
 
     private RaycastHit HitGround() {
         RaycastHit hit;
-        // bool ok = Physics.SphereCast(this.transform.position, this.controller.radius, Vector3.down, out hit, 100, this.layerMask);
-        var ok = Physics.Raycast(this.transform.position, Vector3.down, out hit, 100, this.layerMask);
+        bool ok = Physics.SphereCast(this.transform.position + this.controller.height * Vector3.up, this.controller.radius, Vector3.down, out hit, 100, this.layerMask);
+        // var ok = Physics.Raycast(this.transform.position, Vector3.down, out hit, 100, this.layerMask);
         var angle = Vector3.Angle(hit.normal, Vector3.up);
         
         this.GroundY = hit.point.y;
-        this.InLegal = angle <= this.controller.slopeLimit;
+        this.InLegal = hit.collider.material.staticFriction < 1 && angle <= this.controller.slopeLimit;
 
         return hit;
     }
