@@ -82,7 +82,7 @@ public class Solid {
         var angle = Vector3.Angle(hit.normal, Vector3.up);
         
         this.GroundY = hit.point.y;
-        this.InLegal = hit.collider.material.staticFriction < 1 && angle <= this.controller.slopeLimit;
+        this.InLegal = (!hit.collider || hit.collider.material.staticFriction < 1) && angle <= this.controller.slopeLimit;
 
         return hit;
     }
